@@ -1,7 +1,9 @@
-import constants
-import exceptions
-import keys
-import keyRing
+from constants import PUBLIC_KEY_RING, PRIVATE_KEY_RING
+from exceptions import criticalError
+from keys import PublicKey, PrivateKey
+from keyRing import KeyRing
+
+from ui.main import MainMenu
 
 class Application:
 
@@ -10,7 +12,17 @@ class Application:
 
     def setupGlobals(self):
         try:
-            self.privateKeyRing = keyRing.KeyRing(constants.PRIVATE_KEY_RING, keys.PrivateKey)
-            self.publicKeyRing = keyRing.KeyRing(constants.PUBLIC_KEY_RING, keys.PublicKey)
+            self.privateKeyRing = KeyRing(PRIVATE_KEY_RING, PrivateKey)
+            self.publicKeyRing = KeyRing(PUBLIC_KEY_RING, PublicKey)
         except:
-            exceptions.criticalError(Exception('Error loading key rings.'))
+            criticalError(Exception('Error loading key rings.'))
+
+    def launchGui(self):
+        MainMenu.launch(self)
+
+if __name__ == '__main__':
+    try:
+        app = Application()
+        app.launchGui()
+    except Exception as ex:
+        criticalError(ex)

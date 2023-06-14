@@ -1,4 +1,5 @@
 from enum import IntEnum
+from datetime import datetime
 
 RSA_EXPONENT = 65537
 MODULUS_64BIT = 2**64
@@ -24,6 +25,9 @@ def algorithmSetToString(algo: AlgorithmSet):
             return 'IDEA'
         case other:
             return 'NONE'
+        
+def timestampToString(timestamp: int):
+    return datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
 
 class KeySize (IntEnum):
     KS_NA = 0
