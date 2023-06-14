@@ -1,8 +1,8 @@
 import os
 import json
 
-import exceptions
-import keys
+from exceptions import InvalidKeyType, DuplicateKey, NoKeys, MultipleKeys
+from keys import PublicKey, PrivateKey
 
 class KeyRing:
 
@@ -25,18 +25,18 @@ class KeyRing:
         json.dump(res, file)
         file.close()
 
-    def insert(self, key: keys.PublicKey):
+    def insert(self, key: PublicKey):
         if type(key) != self.parentClass:
-            if self.parentClass == keys.PrivateKey:
-                raise exceptions.InvalidKeyType('Trying to insert public key into private ring.')
+            if self.parentClass == PrivateKey:
+                raise InvalidKeyType('Trying to insert public key into private ring.')
             else:
-                raise exceptions.InvalidKeyType('Trying to insert private key into public ring.')
+                raise InvalidKeyType('Trying to insert private key into public ring.')
         collision = list(filter(lambda x: x.id == key.id, self.keys))
         if len(collision) > 0:
             if collision[0].toSerializable() == key.toSerializable():
-                raise exceptions.DuplicateKey('Same key already exists.')
+                raise DuplicateKey('Same key already exists.')
             else:
-                raise exceptions.DuplicateKey('Different key with same id already exists.')
+                raise DuplicateKey('Different key with same id already exists.')
         self.keys.append(key)
         self.save()
 
@@ -49,16 +49,16 @@ class KeyRing:
         if name != None:
             result += list(filter(lambda x: x.name == name, self.keys))
         if len(result) == 0:
-            raise exceptions.NoKeys('No keys match given criteria.')
+            raise NoKeys('No keys match given criteria.')
         if len(result) != 1:
-            raise exceptions.MultipleKeys('Multiple keys match given criteria.')
+            raise MultipleKeys('Multiple keys match given criteria.')
         return result[0]
 
     def delete(self, id:int):
         self.keys = list(filter(lambda x: x.id != id, self.keys))
 
     def isPrivate(self):
-        return self.parentClass == keys.PrivateKey
+        return self.parentClass == PrivateKey
 
 #prKr = KeyRing('private.kr0', keys.PrivateKey)
 #puKr = KeyRing('public.kr0', keys.PublicKey)
