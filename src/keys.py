@@ -10,14 +10,14 @@ from Cryptodome.Cipher import CAST
 from Cryptodome.PublicKey import ElGamal
 from Cryptodome.Random import get_random_bytes
 
-import constants
-import exceptions
+from constants import AlgorithmSet, KeySize, MODULUS_64BIT, RSA_EXPONENT
+from exceptions import InvalidPemFile, InvalidAlgorithm, WrongPassword, InvalidKeySize
 
 class PublicKey(ABC):
     
     ALGORITHM_MAP = {}
 
-    def __init__(self, timestamp: int, id: int, publicKey: dict, email: str, algorithm: constants.AlgorithmSet):
+    def __init__(self, timestamp: int, id: int, publicKey: dict, email: str, algorithm: AlgorithmSet):
         self.timestamp = timestamp
         self.id = id
         self.publicKey = publicKey
@@ -31,7 +31,7 @@ class PublicKey(ABC):
         f.close()
         index = str.find('\n-----END PUBLIC KEY-----\n')
         if index == -1:
-            raise exceptions.InvalidPemFile('Not an PUBLIC KEY pem file.')
+            raise InvalidPemFile('Not an PUBLIC KEY pem file.')
         key = serialization.load_pem_public_key(str.encode())
         rem = str[index + len('\n-----END PUBLIC KEY-----\n'):].split('\n')
         pars = {}
@@ -42,15 +42,15 @@ class PublicKey(ABC):
                 second = par[index+1:].strip()
                 pars[first] = second
         try:
-            keyClass = PublicKey.ALGORITHM_MAP[constants.AlgorithmSet(int(pars['algorithm']))]
+            keyClass = PublicKey.ALGORITHM_MAP[AlgorithmSet(int(pars['algorithm']))]
             dict = keyClass.toDict(key, pars)
             return keyClass(int(pars['timestamp']), int(pars['id']), dict, pars['email'])
         except:
-            raise exceptions.InvalidPemFile('Failed to parse metadata.')
+            raise InvalidPemFile('Failed to parse metadata.')
         
     @staticmethod
     def fromDict(dict: dict):
-        keyClass = PublicKey.ALGORITHM_MAP[constants.AlgorithmSet(int(dict['algorithm']))]
+        keyClass = PublicKey.ALGORITHM_MAP[AlgorithmSet(int(dict['algorithm']))]
         return keyClass(dict['timestamp'], dict['id'], dict['publicKey'], dict['email'])
 
     @abstractclassmethod
@@ -80,11 +80,18 @@ class PublicKey(ABC):
     
     def toSerializable(self):
         return {'timestamp': self.timestamp, 'id': self.id, 'email': self.email, 'algorithm': self.algorithm, 'publicKey': self.publicKey}
+    
+    def isPrivate(self):
+        return False
+    
+    def keySize(self):
+        obj = self.toPublicSigningObject()
+        return obj.key_size
 
 class RSAPublicKey(PublicKey):
     
     def __init__(self, timestamp: int, id: int, publicKey: dict, email: str):
-        PublicKey.__init__(self, timestamp, id, publicKey, email, constants.AlgorithmSet.RSA)
+        PublicKey.__init__(self, timestamp, id, publicKey, email, AlgorithmSet.RSA)
 
     @staticmethod
     def toDict(object: rsa.RSAPublicKey, meta = None):
@@ -103,24 +110,24 @@ class RSAPublicKey(PublicKey):
 class DSAEGPublicKey(PublicKey):
     
     def __init__(self, timestamp: int, id: int, publicKey: dict, email: str):
-        PublicKey.__init__(self, timestamp, id, publicKey, email, constants.AlgorithmSet.DSA_ELGAMAL)
+        PublicKey.__init__(self, timestamp, id, publicKey, email, AlgorithmSet.DSA_ELGAMAL)
 
     @staticmethod
     def toDict(object1: dsa.DSAPublicKey, object2: ElGamal.ElGamalKey | dict):
-        d = {}
-        d['p'] = object1.public_numbers().parameter_numbers.p
-        d['q'] = object1.public_numbers().parameter_numbers.q
-        d['g'] = object1.public_numbers().parameter_numbers.g
-        d['y'] = object1.public_numbers().y
-        if type(object2) is dict:
-            d['ep'] = int(object2['ep'])
-            d['eg'] = int(object2['eg'])
-            d['ey'] = int(object2['ey'])
+        dict = {}
+        dict['p'] = object1.public_numbers().parameter_numbers.p
+        dict['q'] = object1.public_numbers().parameter_numbers.q
+        dict['g'] = object1.public_numbers().parameter_numbers.g
+        dict['y'] = object1.public_numbers().y
+        if type(object2) is not ElGamal.ElGamalKey:
+            dict['ep'] = int(object2['ep'])
+            dict['eg'] = int(object2['eg'])
+            dict['ey'] = int(object2['ey'])
         else:
-            d['ep'] = object2.p._value
-            d['eg'] = object2.g._value
-            d['ey'] = object2.y._value
-        return d
+            dict['ep'] = object2.p._value
+            dict['eg'] = object2.g._value
+            dict['ey'] = object2.y._value
+        return dict
 
     def toPublicSigningObject(self):
         parameterNumbers = dsa.DSAParameterNumbers(self.publicKey['p'], self.publicKey['q'], self.publicKey['g'])
@@ -139,17 +146,17 @@ class PrivateKey (PublicKey):
 
     ALGORITHM_MAP = {}
 
-    def __init__(self, timestamp: int, id: int, publicKey: dict, privateKey: str, email: str, algorithm: constants.AlgorithmSet, name: str):
+    def __init__(self, timestamp: int, id: int, publicKey: dict, privateKey: str, email: str, algorithm: AlgorithmSet, name: str):
         PublicKey.__init__(self, timestamp, id, publicKey, email, algorithm)
         self.privateKey = privateKey
         self.name = name
 
     @staticmethod
-    def generateKey(name: str, email: str, algorithm: constants.AlgorithmSet, size: constants.KeySize, password:str):
+    def generateKey(name: str, email: str, algorithm: AlgorithmSet, size: KeySize, password:str):
         if algorithm in PrivateKey.ALGORITHM_MAP:
             return PrivateKey.ALGORITHM_MAP[algorithm].generateKey(name, email, size, password)
         else:
-            raise exceptions.InvalidAlgorithm('Only RSA and DSA/ElGamal are supported for key generation.')
+            raise InvalidAlgorithm('Only RSA and DSA/ElGamal are supported for key generation.')
 
     @staticmethod
     def encryptKey(key: dict, password: str):
@@ -171,7 +178,7 @@ class PrivateKey (PublicKey):
         f.close()
         index = str.find('\n-----END ENCRYPTED PRIVATE KEY-----\n')
         if index == -1:
-            raise exceptions.InvalidPemFile('Not an ENCRYPTED PRIVATE KEY pem file.')
+            raise InvalidPemFile('Not an ENCRYPTED PRIVATE KEY pem file.')
         pem = str[len('-----BEGIN ENCRYPTED PRIVATE KEY-----\n'):index].replace('\n','')
         rem = str[index + len('\n-----END ENCRYPTED PRIVATE KEY-----\n'):].split('\n')
         pars = {}
@@ -182,14 +189,14 @@ class PrivateKey (PublicKey):
                 second = par[index+1:].strip()
                 pars[first] = second
         try:
-            keyClass = PrivateKey.ALGORITHM_MAP[constants.AlgorithmSet(int(pars['algorithm']))]
+            keyClass = PrivateKey.ALGORITHM_MAP[AlgorithmSet(int(pars['algorithm']))]
             return keyClass(int(pars['timestamp']), int(pars['id']), json.loads(pars['publicKey']), pem, pars['email'], pars['name'])
         except:
-            raise exceptions.InvalidPemFile('Failed to parse metadata.')
+            raise InvalidPemFile('Failed to parse metadata.')
     
     @staticmethod
     def fromDict(dict: dict):
-        keyClass = PrivateKey.ALGORITHM_MAP[constants.AlgorithmSet(int(dict['algorithm']))]
+        keyClass = PrivateKey.ALGORITHM_MAP[AlgorithmSet(int(dict['algorithm']))]
         return keyClass(dict['timestamp'], dict['id'], dict['publicKey'], dict['privateKey'], dict['email'], dict['name'])
 
     @abstractclassmethod
@@ -228,26 +235,29 @@ class PrivateKey (PublicKey):
             key = json.loads(key.decode())
             return key
         except:
-            raise exceptions.WrongPassword('Wrong password or corrupted private key.')
+            raise WrongPassword('Wrong password or corrupted private key.')
         
     def toSerializable(self):
         dict = PublicKey.toSerializable(self)
         dict['privateKey'] = self.privateKey
         dict['name'] = self.name
         return dict
+    
+    def isPrivate(self):
+        return True
 
 class RSAPrivateKey(PrivateKey, RSAPublicKey):
 
     def __init__(self, timestamp: int, id: int, publicKey: dict, privateKey: str, email: str, name: str):
-        PrivateKey.__init__(self, timestamp, id, publicKey, privateKey, email, constants.AlgorithmSet.RSA, name)
+        PrivateKey.__init__(self, timestamp, id, publicKey, privateKey, email, AlgorithmSet.RSA, name)
 
     @staticmethod
-    def generateKey(name: str, email: str, size: constants.KeySize, password:str):
-        if size != constants.KeySize.KS_1024 and size != constants.KeySize.KS_2048:
-            raise exceptions.InvalidKeySize('Key size must be 1024 or 2048 bits.')
+    def generateKey(name: str, email: str, size: KeySize, password:str):
+        if size != KeySize.KS_1024 and size != KeySize.KS_2048:
+            raise InvalidKeySize('Key size must be 1024 or 2048 bits.')
         timestamp = int(time.time())
-        key = rsa.generate_private_key(constants.RSA_EXPONENT, size)
-        id = key.public_key().public_numbers().n % constants.MODULUS_64BIT
+        key = rsa.generate_private_key(RSA_EXPONENT, size)
+        id = key.public_key().public_numbers().n % MODULUS_64BIT
         publicKey = RSAPublicKey.toDict(key.public_key())
         privateKey = PrivateKey.encryptKey(RSAPrivateKey.toDict(key), password)
         return RSAPrivateKey(timestamp, id, publicKey, privateKey, email, name)
@@ -275,16 +285,16 @@ class RSAPrivateKey(PrivateKey, RSAPublicKey):
 class DSAEGPrivateKey(PrivateKey, DSAEGPublicKey):
 
     def __init__(self, timestamp: int, id: int, publicKey: dict, privateKey: str, email: str, name: str):
-        PrivateKey.__init__(self, timestamp, id, publicKey, privateKey, email, constants.AlgorithmSet.DSA_ELGAMAL, name)
+        PrivateKey.__init__(self, timestamp, id, publicKey, privateKey, email, AlgorithmSet.DSA_ELGAMAL, name)
 
     @staticmethod
-    def generateKey(name: str, email: str, size: constants.KeySize, password:str):
-        if size != constants.KeySize.KS_1024 and size != constants.KeySize.KS_2048:
-            raise exceptions.InvalidKeySize('Key size must be 1024 or 2048 bits.')
+    def generateKey(name: str, email: str, size: KeySize, password:str):
+        if size != KeySize.KS_1024 and size != KeySize.KS_2048:
+            raise InvalidKeySize('Key size must be 1024 or 2048 bits.')
         timestamp = int(time.time())
         key1 = dsa.generate_private_key(size)
         key2 = ElGamal.generate(size, get_random_bytes)
-        id = key1.public_key().public_numbers().y % constants.MODULUS_64BIT
+        id = key1.public_key().public_numbers().y % MODULUS_64BIT
         publicKey = DSAEGPublicKey.toDict(key1.public_key(), key2.publickey())
         privateKey = PrivateKey.encryptKey(DSAEGPrivateKey.toDict(key1, key2), password)
         return DSAEGPrivateKey(timestamp, id, publicKey, privateKey, email, name)
@@ -309,5 +319,5 @@ class DSAEGPrivateKey(PrivateKey, DSAEGPublicKey):
         return private
 
 
-PublicKey.ALGORITHM_MAP = {constants.AlgorithmSet.RSA: RSAPublicKey, constants.AlgorithmSet.DSA_ELGAMAL: DSAEGPublicKey}
-PrivateKey.ALGORITHM_MAP = {constants.AlgorithmSet.RSA: RSAPrivateKey, constants.AlgorithmSet.DSA_ELGAMAL: DSAEGPrivateKey}
+PublicKey.ALGORITHM_MAP = {AlgorithmSet.RSA: RSAPublicKey, AlgorithmSet.DSA_ELGAMAL: DSAEGPublicKey}
+PrivateKey.ALGORITHM_MAP = {AlgorithmSet.RSA: RSAPrivateKey, AlgorithmSet.DSA_ELGAMAL: DSAEGPrivateKey}
