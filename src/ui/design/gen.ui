@@ -70,7 +70,7 @@
       </widget>
      </item>
      <item>
-      <widget class="QLineEdit" name="lineEdit_3"/>
+      <widget class="QLineEdit" name="tbName"/>
      </item>
     </layout>
    </item>
@@ -101,7 +101,7 @@
       </widget>
      </item>
      <item>
-      <widget class="QLineEdit" name="lineEdit_2"/>
+      <widget class="QLineEdit" name="tbEmail"/>
      </item>
     </layout>
    </item>
@@ -132,7 +132,7 @@
       </widget>
      </item>
      <item>
-      <widget class="QComboBox" name="comboBox">
+      <widget class="QComboBox" name="cbAlgo">
        <item>
         <property name="text">
          <string>RSA</string>
@@ -170,7 +170,7 @@
       </widget>
      </item>
      <item>
-      <widget class="QComboBox" name="comboBox_2">
+      <widget class="QComboBox" name="cbSize">
        <item>
         <property name="text">
          <string>1024</string>
@@ -186,7 +186,7 @@
     </layout>
    </item>
    <item>
-    <widget class="QPushButton" name="pushButton">
+    <widget class="QPushButton" name="btnGenerate">
      <property name="font">
       <font>
        <pointsize>12</pointsize>

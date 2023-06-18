@@ -38,8 +38,12 @@ def criticalError (exception: Exception):
     msg.exec()
     sys.exit(-1)
 
-def error (text: str):
+def error (exception: Exception):
     msg = QMessageBox()
     msg.setWindowTitle('Error')
-    msg.setText(text)
+    msg.setText('A an error has occurred.')
+    if(exception.args != None):
+        print = [str(d) for d in exception.args]
+        msg.setInformativeText('\n'.join(print))
+    msg.setDetailedText(''.join(traceback.format_exception(exception)))
     msg.exec()

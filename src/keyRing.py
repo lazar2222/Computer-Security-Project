@@ -26,7 +26,7 @@ class KeyRing:
         file.close()
 
     def insert(self, key: PublicKey):
-        if type(key) != self.parentClass:
+        if key.isPrivate() != self.isPrivate():
             if self.parentClass == PrivateKey:
                 raise InvalidKeyType('Trying to insert public key into private ring.')
             else:
@@ -56,6 +56,7 @@ class KeyRing:
 
     def delete(self, id:int):
         self.keys = list(filter(lambda x: x.id != id, self.keys))
+        self.save()
 
     def isPrivate(self):
         return self.parentClass == PrivateKey

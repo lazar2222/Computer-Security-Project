@@ -1,11 +1,14 @@
-from PyQt5.QtWidgets import QDialog
+from PyQt5.QtWidgets import QDialog, QFileDialog
 from PyQt5.QtCore import Qt, QAbstractTableModel, QVariant
 from PyQt5.uic import loadUi
 
 from constants import algorithmSetToString, timestampToString
+from exceptions import error
+from keys import PublicKey, PrivateKey
 from keyRing import KeyRing
 
 import ui.keyDetails as keyDetails
+import ui.keyGeneration as KeyGeneration
 
 class KeyRingModel(QAbstractTableModel):
     
@@ -61,12 +64,37 @@ class KeyRingManager(QDialog):
     def displayKeyDetails(self, index):
         key = self.keyRing.keys[index.row()]
         keyDetails.KeyDetails.launch(key, self.keyRing, self)
+        self.model = KeyRingModel(self.keyRing)
+        self.tableView.setModel(self.model)
 
     def generateKey(self):
-        pass
+        key = KeyGeneration.KeyGeneration.launch(self)
+        if key != None:
+            try:
+                self.keyRing.insert(key)
+            except Exception as ex:
+                error(ex)
+            self.model = KeyRingModel(self.keyRing)
+            self.tableView.setModel(self.model)
 
     def importKey(self):
-        pass
+        private = self.keyRing.isPrivate()
+        title = 'Import private key' if private else 'Import public key'
+        fname = QFileDialog.getOpenFileName(self, title, '.', 'Pem files (*.pem)', 'Pem files (*.pem)')[0]
+        key = None
+        try:
+            if fname != '':
+                if private:
+                    key = PrivateKey.importPrivate(fname)
+                else:
+                    key = PublicKey.importPublic(fname)
+                self.keyRing.insert(key)
+        except Exception as ex:
+            error(ex)
+        self.model = KeyRingModel(self.keyRing)
+        self.tableView.setModel(self.model)
+        
+        
 
     @staticmethod
     def launch(keyRing: KeyRing, parent = None):
