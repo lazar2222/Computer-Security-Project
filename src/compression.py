@@ -2,8 +2,10 @@ import zlib
 
 class MessageCompression:
 
-    def compress(self, message):
+    @staticmethod
+    def compress(message):
         return zlib.compress(message)
     
-    def decompress(self, message):
+    @staticmethod
+    def decompress(message):
         return zlib.decompress(message)

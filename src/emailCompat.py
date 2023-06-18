@@ -2,8 +2,10 @@ import base64
 
 class MessageEmailCompatibility:
 
-    def encode(self, message):
+    @staticmethod
+    def encode(message):
         return base64.b64encode(message)
     
-    def decode(self, message):
+    @staticmethod
+    def decode(message):
         return base64.b64decode(message)
