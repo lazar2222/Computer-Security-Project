@@ -10,11 +10,13 @@ import ui.passwordDialog as passwordDialog
 
 class KeyDetails(QDialog):
 
-    def __init__(self, key: PublicKey, keyRing: KeyRing = None, parent = None):
+    def __init__(self, key: PublicKey, keyRing: KeyRing = None, select: bool = False, parent = None):
         super().__init__(parent)
         loadUi('src/ui/design/kdet.ui', self)
         self.key = key
         self.keyRing = keyRing
+        self.canSelect = select
+        self.selected = None
         self.editing = False
         self.setupUi()
 
@@ -27,12 +29,14 @@ class KeyDetails(QDialog):
         self.framePrivate.setVisible(private)
         self.btnEdit.setVisible(keyRing)
         self.btnDelete.setVisible(keyRing)
+        self.btnSelect.setVisible(self.canSelect)
         
         self.btnExpPrivate.clicked.connect(lambda: self.export(True))
         self.btnExpPublic.clicked.connect(lambda: self.export(False))
         self.btnEdit.clicked.connect(self.edit)
         self.btnDelete.clicked.connect(self.delete)
         self.btnDecrypt.clicked.connect(self.decrypt)
+        self.btnSelect.clicked.connect(self.select)
 
         key = self.key
         self.tbCreationDate.setText(timestampToString(key.timestamp))
@@ -95,6 +99,12 @@ class KeyDetails(QDialog):
             except Exception as ex:
                 error(ex)
 
+    def select(self):
+        self.selected = self.key
+        self.close()
+
     @staticmethod
-    def launch(key: PublicKey, keyRing: KeyRing = None, parent = None):
-        KeyDetails(key, keyRing, parent).exec()
+    def launch(key: PublicKey, keyRing: KeyRing = None, select: bool = False, parent = None):
+        kdet = KeyDetails(key, keyRing, select, parent)
+        kdet.exec()
+        return kdet.selected

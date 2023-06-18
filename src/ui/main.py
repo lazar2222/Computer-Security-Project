@@ -5,6 +5,8 @@ from PyQt5.uic import loadUi
 from keyRing import KeyRing
 
 import ui.keyRingManager as keyRingManager
+import ui.sendMessage as sendMessage
+import ui.messageDetails as messageDetails
 
 class MainMenu(QMainWindow):
     
@@ -21,13 +23,13 @@ class MainMenu(QMainWindow):
         self.btnReceive.clicked.connect(self.showReceiveMessage)
 
     def showKeyRing(self, keyRing: KeyRing):
-        keyRingManager.KeyRingManager.launch(keyRing, self)
+        keyRingManager.KeyRingManager.launch(keyRing, False, self)
     
     def showSendMessage(self):
-        pass
+        sendMessage.SendMessage.launch(self.application, self)
     
     def showReceiveMessage(self):
-        pass
+        messageDetails.MessageDetails.launch(self.application, self)
 
     @staticmethod
     def launch(app):

@@ -24,8 +24,7 @@ class PasswordDialog(QDialog):
             self.tbId.setText(str(self.key.id))
 
     def displayKeyDetails(self):
-        dialog = keyDetails.KeyDetails(self.key, None, self)
-        dialog.exec()
+        keyDetails.KeyDetails.launch(self.key, None, False, self)
 
     @staticmethod
     def launch(key: PrivateKey, parent = None):

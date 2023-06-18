@@ -45,10 +45,12 @@ class KeyRingModel(QAbstractTableModel):
 
 class KeyRingManager(QDialog):
 
-    def __init__(self, keyRing: KeyRing, parent = None):
+    def __init__(self, keyRing: KeyRing, select: bool = False, parent = None):
         super().__init__(parent)
         loadUi('src/ui/design/kmg.ui', self)
         self.keyRing = keyRing
+        self.select = select
+        self.key = None
         self.model = KeyRingModel(keyRing)
         self.setupUi()
 
@@ -63,7 +65,10 @@ class KeyRingManager(QDialog):
 
     def displayKeyDetails(self, index):
         key = self.keyRing.keys[index.row()]
-        keyDetails.KeyDetails.launch(key, self.keyRing, self)
+        res = keyDetails.KeyDetails.launch(key, self.keyRing, self.select, self)
+        if res != None:
+            self.key = res
+            self.close()
         self.model = KeyRingModel(self.keyRing)
         self.tableView.setModel(self.model)
 
@@ -97,5 +102,7 @@ class KeyRingManager(QDialog):
         
 
     @staticmethod
-    def launch(keyRing: KeyRing, parent = None):
-        KeyRingManager(keyRing, parent).exec()
+    def launch(keyRing: KeyRing, select = False, parent = None):
+        krm = KeyRingManager(keyRing, select, parent)
+        krm.exec()
+        return krm.key

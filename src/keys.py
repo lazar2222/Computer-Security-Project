@@ -87,6 +87,9 @@ class PublicKey(ABC):
     def keySize(self):
         obj = self.toPublicSigningObject()
         return obj.key_size
+    
+    def __repr__(self):
+        return f'Email: {self.email}, id: {self.id},'
 
 class RSAPublicKey(PublicKey):
     
@@ -245,6 +248,9 @@ class PrivateKey (PublicKey):
     
     def isPrivate(self):
         return True
+    
+    def __repr__(self):
+        return f'Name: {self.name}, Email: {self.email}, Id: {self.id}'
 
 class RSAPrivateKey(PrivateKey, RSAPublicKey):
 
