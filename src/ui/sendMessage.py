@@ -2,12 +2,10 @@ import os
 from PyQt5.QtWidgets import QDialog, QFileDialog
 from PyQt5.uic import loadUi
 
-#from constants import timestampToString, algorithmSetToString
+from constants import AlgorithmSet
 from exceptions import error
-#from keys import PublicKey
-#from keyRing import KeyRing
 
-#import ui.passwordDialog as passwordDialog
+import ui.passwordDialog as passwordDialog
 import ui.keyRingManager as keyRingManager
 
 class SendMessage(QDialog):
@@ -66,7 +64,34 @@ class SendMessage(QDialog):
         if self.gbEnc.isChecked() and self.publicKey == None:
             error(ValueError('If encryption is enabled, a public key must be selected.'))
             return
-        
+        if self.gbAuth.isChecked():
+            while True:
+                password = passwordDialog.PasswordDialog.launch(self.privateKey, self)
+                if password == None:
+                    return
+                try:
+                    self.privateKey.decryptKey(password)
+                    break
+                except Exception as ex:
+                    error(ex)
+        fname = QFileDialog.getSaveFileName(self, 'Save output file', '.', 'PGP files (*.pgp)', 'PGP files (*.pgp)')[0]
+        if fname != '':
+            try:
+                self.application.send(
+                    text = text if self.source == 0 else None,
+                    fname = self.fname if self.source != 0 else None,
+                    privateKey = self.privateKey if self.gbAuth.isChecked() else None,
+                    password = password if self.gbAuth.isChecked() else None,
+                    compression = self.gbComp.isChecked(),
+                    publicKey = self.publicKey if self.gbEnc.isChecked() else None,
+                    algorithm = AlgorithmSet.AES128 if self.cbAlgo.currentIndex() == 0 else AlgorithmSet.IDEA,
+                    compat = self.gbComp.isChecked(),
+                    output = fname
+                )
+                self.close()
+            except Exception as ex:
+                error(ex)
+
     @staticmethod
     def launch(application , parent = None):
         SendMessage(application, parent).exec()

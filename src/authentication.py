@@ -9,7 +9,7 @@ from keyRing import KeyRing
 class MessageAuthentication:
 
     @staticmethod
-    def sign(message, privateKey: PrivateKey, password: str):
+    def sign(message: bytes, privateKey: PrivateKey, password: str):
         timestamp = int(time.time())
         hasher = hashlib.sha1()
         hasher.update(message)
@@ -22,7 +22,7 @@ class MessageAuthentication:
         return header + message
     
     @staticmethod
-    def verify(message, primary: KeyRing, secondary: KeyRing):
+    def verify(message: bytes, primary: KeyRing, secondary: KeyRing):
         timestamp, id, sigLen = struct.unpack_from('!IQH', message)
         message = message[14:]
         foreignCheck = message[:2]

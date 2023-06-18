@@ -2,16 +2,27 @@ import time
 import json
 import hashlib
 import base64
+import random
 from abc import ABC, abstractclassmethod
 
 from cryptography.hazmat.primitives import serialization, padding
 from cryptography.hazmat.primitives.asymmetric import rsa, dsa
+from cryptography.hazmat.primitives.asymmetric import padding as aspad
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric.utils import Prehashed
+from cryptography.exceptions import InvalidSignature
 from Cryptodome.Cipher import CAST
 from Cryptodome.PublicKey import ElGamal
 from Cryptodome.Random import get_random_bytes
 
 from constants import AlgorithmSet, KeySize, MODULUS_64BIT, RSA_EXPONENT
 from exceptions import InvalidPemFile, InvalidAlgorithm, WrongPassword, InvalidKeySize
+
+PATCH = False
+
+if PATCH:
+    import Cryptodome.Math.Primality
+    Cryptodome.Math.Primality.generate_probable_safe_prime = Cryptodome.Math.Primality.generate_probable_prime
 
 class PublicKey(ABC):
     
@@ -59,6 +70,14 @@ class PublicKey(ABC):
 
     @abstractclassmethod
     def toPublicEncryptionObject(self):
+        pass
+
+    @abstractclassmethod
+    def verify(self, signature: bytes, digest: bytes):
+        pass
+
+    @abstractclassmethod
+    def encrypt(self, data: bytes):
         pass
 
     def exportPublic(self, fname: str):
@@ -109,6 +128,17 @@ class RSAPublicKey(PublicKey):
     def toPublicEncryptionObject(self):
         return self.toPublicSigningObject()
 
+    def verify(self, signature: bytes, digest: bytes):
+        keyObject = self.toPublicSigningObject()
+        try:
+            keyObject.verify(signature, digest, padding = padding.PSS(padding.MGF1(hashes.SHA1()), padding.PSS.MAX_LENGTH), algorithm = Prehashed(hashes.SHA1()))
+            return True
+        except InvalidSignature:
+            return False
+        
+    def encrypt(self, data: bytes):
+        keyObject = self.toPublicEncryptionObject()
+        return keyObject.encrypt(data, aspad.PKCS1v15())
         
 class DSAEGPublicKey(PublicKey):
     
@@ -144,6 +174,22 @@ class DSAEGPublicKey(PublicKey):
         file += f'eg: {self.publicKey["eg"]}\n'
         file += f'ey: {self.publicKey["ey"]}\n'
         return file
+
+    def verify(self, signature: bytes, digest: bytes):
+        keyObject = self.toPublicSigningObject()
+        try:
+            keyObject.verify(signature, digest, algorithm = Prehashed(hashes.SHA1()))
+            return True
+        except InvalidSignature:
+            return False  
+    
+    def encrypt(self, data: bytes):
+        keyObject = self.toPublicEncryptionObject()
+        msg = int.from_bytes(data, 'big')
+        encryptedData = keyObject._encrypt(msg, random.randint(1, keyObject.p-1))
+        bytes1 = int.to_bytes(encryptedData[0], 256, 'big')
+        bytes2 = int.to_bytes(encryptedData[1], 256, 'big')
+        return bytes1 + bytes2
 
 class PrivateKey (PublicKey):
 
@@ -208,6 +254,14 @@ class PrivateKey (PublicKey):
 
     @abstractclassmethod
     def toPrivateEncryptionObject(self, password: str):
+        pass
+
+    @abstractclassmethod
+    def sign(self, password: str, digest: bytes):
+        pass
+
+    @abstractclassmethod
+    def decrypt(self, password: str, data: bytes):
         pass
 
     def exportPrivate(self, fname: str):
@@ -288,6 +342,14 @@ class RSAPrivateKey(PrivateKey, RSAPublicKey):
     def toPrivateEncryptionObject(self, password: str):
         return self.toPrivateSigningObject(password)
 
+    def sign(self, password: str, digest: bytes):
+        keyObject = self.toPrivateSigningObject(password)
+        return keyObject.sign(digest, padding = padding.PSS(padding.MGF1(hashes.SHA1()), padding.PSS.MAX_LENGTH), algorithm = Prehashed(hashes.SHA1()))
+    
+    def decrypt(self, password: str, data: bytes):
+        keyObject = self.toPrivateEncryptionObject(password)
+        return keyObject.decrypt(data, aspad.PKCS1v15())
+
 class DSAEGPrivateKey(PrivateKey, DSAEGPublicKey):
 
     def __init__(self, timestamp: int, id: int, publicKey: dict, privateKey: str, email: str, name: str):
@@ -324,6 +386,18 @@ class DSAEGPrivateKey(PrivateKey, DSAEGPublicKey):
         private = ElGamal.construct((public.p._value, public.g._value, public.y._value, private['ex']))
         return private
 
+    def sign(self, password: str, digest: bytes):
+        keyObject = self.toPrivateSigningObject(password)
+        return keyObject.sign(digest, algorithm = Prehashed(hashes.SHA1()))
+
+    def decrypt(self, password: str, data: bytes):
+        keyObject = self.toPrivateEncryptionObject(password)
+        bytes1 = data[:256]
+        bytes2 = data[256:]
+        int1 = int.from_bytes(bytes1,'big')
+        int2 = int.from_bytes(bytes2,'big')
+        decryptedData = keyObject._decrypt((int1, int2))
+        return int.to_bytes(decryptedData, 16, 'big')
 
 PublicKey.ALGORITHM_MAP = {AlgorithmSet.RSA: RSAPublicKey, AlgorithmSet.DSA_ELGAMAL: DSAEGPublicKey}
 PrivateKey.ALGORITHM_MAP = {AlgorithmSet.RSA: RSAPrivateKey, AlgorithmSet.DSA_ELGAMAL: DSAEGPrivateKey}
