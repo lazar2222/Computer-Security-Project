@@ -85,7 +85,7 @@ class SendMessage(QDialog):
                     compression = self.gbComp.isChecked(),
                     publicKey = self.publicKey if self.gbEnc.isChecked() else None,
                     algorithm = AlgorithmSet.AES128 if self.cbAlgo.currentIndex() == 0 else AlgorithmSet.IDEA,
-                    compat = self.gbComp.isChecked(),
+                    compat = self.gbCompat.isChecked(),
                     output = fname
                 )
                 self.close()

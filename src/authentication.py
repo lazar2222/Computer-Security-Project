@@ -85,4 +85,4 @@ class MessageAuthentication:
                 else:
                     status = 'The signature is invalid, but there was an undefined error with the key.'
 
-        return (message, timestamp, id, key, status)
+        return (message, (timestamp, id, key, status))

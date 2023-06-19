@@ -45,9 +45,12 @@ class MessageEncryption:
         try:
             key = primary.lookup(id = id)
         except MultipleKeys:
-            return (message, 'Unable to decrypt, there are multiple private keys with matching id.')
+            return (message, (id, algo, None, 'Unable to decrypt, there are multiple private keys with matching id.'))
         except NoKeys:
-            return (message, 'Unable to decrypt, there are no keys with matching id.')
+            return (message, (id, algo, None, 'Unable to decrypt, there are no keys with matching id.'))
+
+        if password == None:
+            return (message, (id, algo, key, 'Unable to decrypt, no password provided.'))
 
         sessionKey = key.decrypt(password, encryptedKey)
 
@@ -61,4 +64,4 @@ class MessageEncryption:
         unpadder = padding.PKCS7(128).unpadder()
         message = unpadder.update(message) + unpadder.finalize()
 
-        return message
+        return (message, (id, algo, key, 'Ok'))

@@ -5,6 +5,12 @@ import base64
 import random
 from abc import ABC, abstractclassmethod
 
+PATCH = True
+
+if PATCH:
+    import Cryptodome.Math.Primality
+    Cryptodome.Math.Primality.generate_probable_safe_prime = Cryptodome.Math.Primality.generate_probable_prime
+
 from cryptography.hazmat.primitives import serialization, padding
 from cryptography.hazmat.primitives.asymmetric import rsa, dsa
 from cryptography.hazmat.primitives.asymmetric import padding as aspad
@@ -17,12 +23,6 @@ from Cryptodome.Random import get_random_bytes
 
 from constants import AlgorithmSet, KeySize, MODULUS_64BIT, RSA_EXPONENT
 from exceptions import InvalidPemFile, InvalidAlgorithm, WrongPassword, InvalidKeySize
-
-PATCH = False
-
-if PATCH:
-    import Cryptodome.Math.Primality
-    Cryptodome.Math.Primality.generate_probable_safe_prime = Cryptodome.Math.Primality.generate_probable_prime
 
 class PublicKey(ABC):
     
@@ -131,7 +131,7 @@ class RSAPublicKey(PublicKey):
     def verify(self, signature: bytes, digest: bytes):
         keyObject = self.toPublicSigningObject()
         try:
-            keyObject.verify(signature, digest, padding = padding.PSS(padding.MGF1(hashes.SHA1()), padding.PSS.MAX_LENGTH), algorithm = Prehashed(hashes.SHA1()))
+            keyObject.verify(signature, digest, padding = aspad.PSS(aspad.MGF1(hashes.SHA1()), aspad.PSS.MAX_LENGTH), algorithm = Prehashed(hashes.SHA1()))
             return True
         except InvalidSignature:
             return False
@@ -344,7 +344,7 @@ class RSAPrivateKey(PrivateKey, RSAPublicKey):
 
     def sign(self, password: str, digest: bytes):
         keyObject = self.toPrivateSigningObject(password)
-        return keyObject.sign(digest, padding = padding.PSS(padding.MGF1(hashes.SHA1()), padding.PSS.MAX_LENGTH), algorithm = Prehashed(hashes.SHA1()))
+        return keyObject.sign(digest, padding = aspad.PSS(aspad.MGF1(hashes.SHA1()), aspad.PSS.MAX_LENGTH), algorithm = Prehashed(hashes.SHA1()))
     
     def decrypt(self, password: str, data: bytes):
         keyObject = self.toPrivateEncryptionObject(password)
